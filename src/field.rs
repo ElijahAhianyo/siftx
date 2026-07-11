@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct FieldEntry{
@@ -24,9 +25,17 @@ impl FieldEntry {
             indexed
         }
     }
+
+    pub fn is_indexed(&self) -> bool {
+        self.indexed
+    }
+
+    pub fn field_type(&self) -> &FieldType {
+        &self.field_type
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct FieldId(pub u64);
 
 impl FieldId {

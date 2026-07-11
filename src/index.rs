@@ -6,7 +6,11 @@ use crate::directory::{Directory, FsDirectory};
 use crate::document::SourceDocument;
 use crate::schema::Schema;
 use crate::tokenizer::TokenizerManager;
-use crate::Result;
+use crate::{DocumentId, Result};
+use uuid::Uuid;
+use crate::field::FieldValue;
+use crate::posting::PostingsBuilder;
+use crate::segment::{SegmentMeta, SegmentWriter};
 
 struct IndexReader{}
 
@@ -16,12 +20,32 @@ struct IndexMeta{
     next_segment_id: u64,
 }
 
-struct Segment{}
-struct SegmentReader{}
-struct SegmentWriter{}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SegmentMeta{}
+pub struct StoreDoc {
+    id: String,
+    fields: Vec<FieldValue>
+}
+
+
+impl StoreDoc {
+    pub fn from_source(doc: &SourceDocument, schema: Arc<Schema>) -> Self {
+        let fields = doc
+            .fields()
+            .iter()
+            .filter(|f|
+                schema.get_field_entry(f.field_id)
+                    .map(|f| f.is_indexed())
+                    .unwrap_or(false)
+            )
+            .cloned()
+            .collect();
+
+        Self {
+            id: doc.id().clone(),
+            fields
+        }
+    }
+}
 
 const META_FILE: &str = "meta.json";
 
@@ -29,7 +53,7 @@ const META_FILE: &str = "meta.json";
 struct Index {
     dir: Arc<dyn Directory>,
     schema: Arc<Schema>,
-    tokenizers: TokenizerManager
+    tokenizers: Arc<TokenizerManager>
 }
 
 impl Index {
@@ -48,7 +72,7 @@ impl Index {
         Ok(Self{
             dir: Arc::new(dir),
             schema: Arc::new(schema),
-            tokenizers: TokenizerManager::default()
+            tokenizers: Arc::new(TokenizerManager::default())
         })
     }
 
@@ -76,7 +100,20 @@ struct IndexWriter{
 }
 
 impl IndexWriter{
-    pub fn add_document(&self, document: SourceDocument) -> Result<()>{
-        
+    pub fn add_document(&mut self, document: SourceDocument) -> Result<()>{
+        if self.segment_writer.is_none() {
+            self.segment_writer = Some(
+                SegmentWriter::new(
+                    self.index.schema.clone(),
+                    self.index.tokenizers.clone(),
+                )
+            );
+        }
+
+        let mut writer = self.segment_writer.as_mut().expect("should be initialized at this point");
+        writer.add_document(&document);
+
+
+
     }
 }

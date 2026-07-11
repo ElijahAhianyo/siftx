@@ -151,6 +151,10 @@ impl TextAnalyzer{
         self.tokenizer = Box::new(filter.transform(self.tokenizer.clone()));
         self
     }
+    
+    pub fn token_stream<'a >(&'a mut self, text: &'a str) -> BoxedTokenStream<'a> {
+        self.tokenizer.token_stream(text)
+    }
 }
 
 
@@ -227,10 +231,15 @@ impl TokenizerManager{
             tokenizers: HashMap::new()
         }
     }
-    
+
     pub fn register<T: Into<String>>(&mut self, name: T, tokenizer: TextAnalyzer){
         self.tokenizers.insert(name.into(), tokenizer);
     }
+
+    pub fn get(&self, name: &str) -> Option<&TextAnalyzer> {
+        self.tokenizers.get(name)
+    }
+    
 }
 
 
@@ -242,5 +251,5 @@ impl Default for TokenizerManager{
             TextAnalyzer::new(BasicTokenizer::default())
         );
         this
-    }   
+    }
 }

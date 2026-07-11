@@ -13,6 +13,7 @@ mod tokenizer;
 mod index;
 mod directory;
 mod error;
+mod segment;
 
 use thiserror::Error;
 use bumpalo::{Bump};
@@ -40,7 +41,7 @@ impl Directory{
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct DocumentId(u64);
+pub struct DocumentId(u32);
 
 #[derive(Debug)]
 pub struct Document{
@@ -59,28 +60,28 @@ impl Document{
     }
 }
 
-impl ToBytes for DocumentId{
-    type Bytes = Vec<u8>;
-    fn to_le_bytes(&self) -> Self::Bytes {
-        self.0.to_le_bytes().into()
-    }
-
-    fn to_be_bytes(&self) -> Self::Bytes {
-        self.0.to_be_bytes().into()
-    }
-}
-
-
-impl FromBytes for DocumentId{
-    type Bytes = [u8; 8];
-    fn from_le_bytes(bytes: Self::Bytes) -> Self {
-        Self(u64::from_le_bytes(bytes))
-    }
-
-    fn from_be_bytes(bytes: Self::Bytes) -> Self {
-        Self(u64::from_be_bytes(bytes))
-    }
-}
+// impl ToBytes for DocumentId{
+//     type Bytes = Vec<u8>;
+//     fn to_le_bytes(&self) -> Self::Bytes {
+//         self.0.to_le_bytes().into()
+//     }
+//
+//     fn to_be_bytes(&self) -> Self::Bytes {
+//         self.0.to_be_bytes().into()
+//     }
+// }
+//
+//
+// impl FromBytes for DocumentId{
+//     type Bytes = [u8; 8];
+//     fn from_le_bytes(bytes: Self::Bytes) -> Self {
+//         Self(u64::from_le_bytes(bytes))
+//     }
+//
+//     fn from_be_bytes(bytes: Self::Bytes) -> Self {
+//         Self(u64::from_be_bytes(bytes))
+//     }
+// }
 
 pub enum FsEntry{
     Dir(Directory),
@@ -481,137 +482,137 @@ struct Posting{
 //     }
 // }
 
-#[derive(Debug, Clone)]
-struct Index{
-    postings: BTreeMap<String, Vec<Posting>>
-}
+// #[derive(Debug, Clone)]
+// struct Index{
+//     postings: BTreeMap<String, Vec<Posting>>
+// }
+//
+// impl Index{
+//     pub fn new() -> Self {
+//         Self{postings: BTreeMap::new()}
+//     }
+//
+//      fn insert(&mut self, token: &Token, doc_id: DocumentId){
+//         let entry = self.postings.entry(token.term.to_string()).or_insert_with(Vec::new);
+//
+//          match entry.binary_search_by_key(&doc_id, |p| p.doc_id){
+//              Ok(i) => entry[i].positions.push(token.position),
+//              Err(i) => entry.insert(i, Posting{doc_id, positions: vec![token.position]})
+//          }
+//     }
+//
+//     pub fn reset() -> Self{
+//         Self::new()
+//     }
+//
+//     pub fn iter(&self) -> impl Iterator<Item = (&String, &Vec<Posting>)>{
+//         self.postings.iter()
+//     }
+//
+//     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut Vec<Posting>)>{
+//         self.postings.iter_mut()
+//     }
+// }
 
-impl Index{
-    pub fn new() -> Self {
-        Self{postings: BTreeMap::new()}
-    }
+// struct SegmentId(u64);
+//
+// impl SegmentId{
+//     pub fn new() -> Self{
+//         Self(u64::MAX)
+//     }
+//
+//     pub fn next(&mut self) -> Self{
+//         self.0 += 1;
+//         Self(self.0)
+//     }
+// }
 
-     fn insert(&mut self, token: &Token, doc_id: DocumentId){
-        let entry = self.postings.entry(token.term.to_string()).or_insert_with(Vec::new);
+// struct SegmentMetadata{
+//     segment_id: SegmentId,
+//     path: PathBuf,
+//     doc_count: u64,
+//     term_count: u64,
+// }
+//
+// struct IndexWriter{
+//     index: Index,
+//     flush_threshold: usize,
+//     segment_count: u64,
+//     output_dir: PathBuf,
+//     current_segment_id: SegmentId,
+// }
+//
+// impl IndexWriter{
+//     pub fn new(flush_threshold: usize, output_dir: PathBuf) -> Self {
+//         Self{
+//             index: Index::new(),
+//             flush_threshold,
+//             segment_count: 0,
+//             output_dir,
+//             current_segment_id: SegmentId::new(),
+//         }
+//     }
+//
+//     pub fn add_token(&mut self, token: &Token, doc_id: DocumentId){
+//         self.index.insert(token, doc_id);
+//     }
+//
+//     pub fn flush(&mut self) -> Result<SegmentMetadata>{
+//         self.segment_count += 1;
+//
+//         let segment_id = self.current_segment_id.next();
+//         let path = self.output_dir.join(format!("segment-{}.bin", segment_id.0));
+//         let meta = SegmentWriter::write(&mut self.index, path, segment_id)?;
+//         self.index = Index::new();
+//         Ok(meta)
+//     }
+// }
 
-         match entry.binary_search_by_key(&doc_id, |p| p.doc_id){
-             Ok(i) => entry[i].positions.push(token.position),
-             Err(i) => entry.insert(i, Posting{doc_id, positions: vec![token.position]})
-         }
-    }
-
-    pub fn reset() -> Self{
-        Self::new()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &Vec<Posting>)>{
-        self.postings.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut Vec<Posting>)>{
-        self.postings.iter_mut()
-    }
-}
-
-struct SegmentId(u64);
-
-impl SegmentId{
-    pub fn new() -> Self{
-        Self(u64::MAX)
-    }
-
-    pub fn next(&mut self) -> Self{
-        self.0 += 1;
-        Self(self.0)
-    }
-}
-
-struct SegmentMetadata{
-    segment_id: SegmentId,
-    path: PathBuf,
-    doc_count: u64,
-    term_count: u64,
-}
-
-struct IndexWriter{
-    index: Index,
-    flush_threshold: usize,
-    segment_count: u64,
-    output_dir: PathBuf,
-    current_segment_id: SegmentId,
-}
-
-impl IndexWriter{
-    pub fn new(flush_threshold: usize, output_dir: PathBuf) -> Self {
-        Self{
-            index: Index::new(),
-            flush_threshold,
-            segment_count: 0,
-            output_dir,
-            current_segment_id: SegmentId::new(),
-        }
-    }
-
-    pub fn add_token(&mut self, token: &Token, doc_id: DocumentId){
-        self.index.insert(token, doc_id);
-    }
-
-    pub fn flush(&mut self) -> Result<SegmentMetadata>{
-        self.segment_count += 1;
-
-        let segment_id = self.current_segment_id.next();
-        let path = self.output_dir.join(format!("segment-{}.bin", segment_id.0));
-        let meta = SegmentWriter::write(&mut self.index, path, segment_id)?;
-        self.index = Index::new();
-        Ok(meta)
-    }
-}
-
-struct SegmentWriter;
-
-impl SegmentWriter{
-    pub fn write(index: &mut Index, path: PathBuf, segment_id: SegmentId) -> Result<SegmentMetadata>{
-        let file = std::fs::File::create(path.clone())?;
-        let mut writer = std::io::BufWriter::new(file);
-        let mut doc_count = 0;
-
-        for (term, postings) in index.iter_mut() {
-            postings.sort_unstable_by_key(|p| p.doc_id);
-            postings.dedup_by_key(|p| p.doc_id);
-            doc_count += postings.len();
-
-            let term_bytes = term.as_bytes();
-            writer.write_all(&(term_bytes.len() as u32).to_le_bytes())?;
-            writer.write_all(term_bytes)?;
-
-            let postings_len = postings.len();
-            writer.write_all(&(postings_len as u32).to_le_bytes())?;
-            for posting in postings {
-                // writer.write_all(&(posting.to_le_bytes()))?;
-            }
-        }
-        writer.flush()?;
-        let meta = SegmentMetadata{
-            segment_id,
-            path,
-            doc_count: doc_count as u64,
-            term_count: index.postings.len() as u64
-        };
-        Ok(meta)
-    }
-}
-
-
-trait ToBytes {
-    type Bytes: AsRef<[u8]>;
-    fn to_le_bytes(&self) -> Self::Bytes;
-    fn to_be_bytes(&self) -> Self::Bytes;
-
-}
+// struct SegmentWriter;
+//
+// impl SegmentWriter{
+//     pub fn write(index: &mut Index, path: PathBuf, segment_id: SegmentId) -> Result<SegmentMetadata>{
+//         let file = std::fs::File::create(path.clone())?;
+//         let mut writer = std::io::BufWriter::new(file);
+//         let mut doc_count = 0;
+//
+//         for (term, postings) in index.iter_mut() {
+//             postings.sort_unstable_by_key(|p| p.doc_id);
+//             postings.dedup_by_key(|p| p.doc_id);
+//             doc_count += postings.len();
+//
+//             let term_bytes = term.as_bytes();
+//             writer.write_all(&(term_bytes.len() as u32).to_le_bytes())?;
+//             writer.write_all(term_bytes)?;
+//
+//             let postings_len = postings.len();
+//             writer.write_all(&(postings_len as u32).to_le_bytes())?;
+//             for posting in postings {
+//                 // writer.write_all(&(posting.to_le_bytes()))?;
+//             }
+//         }
+//         writer.flush()?;
+//         let meta = SegmentMetadata{
+//             segment_id,
+//             path,
+//             doc_count: doc_count as u64,
+//             term_count: index.postings.len() as u64
+//         };
+//         Ok(meta)
+//     }
+// }
 
 
-trait FromBytes {
-    type Bytes: AsRef<[u8]>;
-    fn from_le_bytes(bytes: Self::Bytes) -> Self;
-    fn from_be_bytes(bytes: Self::Bytes) -> Self;
-}
+// trait ToBytes {
+//     type Bytes: AsRef<[u8]>;
+//     fn to_le_bytes(&self) -> Self::Bytes;
+//     fn to_be_bytes(&self) -> Self::Bytes;
+//
+// }
+//
+//
+// trait FromBytes {
+//     type Bytes: AsRef<[u8]>;
+//     fn from_le_bytes(bytes: Self::Bytes) -> Self;
+//     fn from_be_bytes(bytes: Self::Bytes) -> Self;
+// }
