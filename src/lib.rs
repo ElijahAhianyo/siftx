@@ -17,6 +17,7 @@ mod segment;
 
 use thiserror::Error;
 use bumpalo::{Bump};
+use serde::{Deserialize, Serialize};
 use crate::document::SourceDocument;
 use crate::field::{FieldValue, Value};
 use crate::schema::Schema;
@@ -40,7 +41,7 @@ impl Directory{
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct DocumentId(u32);
 
 #[derive(Debug)]

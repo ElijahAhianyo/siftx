@@ -5,11 +5,18 @@ use crate::field::FieldId;
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
 pub struct Term {
+    pub(crate) field: FieldId,
     pub(crate) text: String,
-    pub(crate) field: FieldId
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TermEntry {
+    pub offset: usize,
+    pub len: usize,
+    pub doc_freq: usize
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DocPosting {
     doc_id: DocumentId,
     term_freq: u32,
@@ -50,5 +57,39 @@ impl PostingsBuilder {
             }
         }
 
+    }
+}
+
+pub struct IntoPostingIter{
+    inner: std::collections::btree_map::IntoIter<Term, PostingsListBuilder>
+}
+
+impl Iterator for IntoPostingIter{
+    type Item = (Term, PostingList);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(term, p)| (term, PostingList{postings: p.posting}))
+    }
+}
+
+impl IntoIterator for PostingsBuilder{
+    type Item = (Term, PostingList);
+    type IntoIter = IntoPostingIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoPostingIter {
+            inner: self.map.into_iter()
+        }
+
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostingList{
+    pub(crate) postings: Vec<DocPosting>
+}
+
+impl PostingList {
+    pub fn doc_freq(&self) -> usize {
+        self.postings.len()
     }
 }

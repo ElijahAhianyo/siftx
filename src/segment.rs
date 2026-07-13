@@ -1,12 +1,15 @@
+use std::fmt::{Display, Formatter};
+use std::path::Path;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::directory::Directory;
 use crate::document::SourceDocument;
 use crate::DocumentId;
 use crate::error::SiftxError;
 use crate::field::{FieldType, Value};
 use crate::index::StoreDoc;
-use crate::posting::{PostingsBuilder, Term};
+use crate::posting::{PostingList, PostingsBuilder, Term, TermEntry};
 use crate::schema::Schema;
 use crate::tokenizer::{TokenStream, TokenizerManager};
 
@@ -14,8 +17,14 @@ use crate::tokenizer::{TokenStream, TokenizerManager};
 pub struct SegmentId(Uuid);
 
 impl SegmentId{
-    pub fn new() -> Self{
+    pub fn generate() -> Self{
         Self(Uuid::new_v4())
+    }
+}
+
+impl Display for SegmentId{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.as_simple().to_string())
     }
 }
 
@@ -77,7 +86,63 @@ impl SegmentWriter {
         self.store.push(StoreDoc::from_source(doc, self.schema.clone()));
         Ok(())
     }
+
+    pub fn finalize(self, dir: &dyn Directory) -> crate::Result<SegmentMeta> {
+        let segment_id = SegmentId::generate();
+        let mut term_infos: Vec<(Term, TermEntry)> = Vec::new();
+        let mut postings_blob: Vec<u8> = Vec::new();
+
+        for (term, posting_list) in self.postings {
+            let doc_freq = posting_list.doc_freq();
+            let offset = postings_blob.len();
+            let encoded = wincode::serialize(&posting_list).unwrap();
+            term_infos.push(
+                (
+                    term,
+                    TermEntry {
+                    offset,
+                    doc_freq,
+                    len: encoded.len()
+                }
+                )
+            );
+            postings_blob.extend(encoded);
+        }
+
+        dir.write(
+            Path::new(&format!("{}.term", segment_id.to_string())),
+            &wincode::serialize(&term_infos).unwrap()
+        )?;
+
+        dir.write(
+            Path::new(&format!("{}.post", segment_id.to_string() )),
+            &wincode::serialize(&postings_blob).unwrap()
+        )?;
+
+        dir.write(
+            Path::new(&format!("{}.store", segment_id.to_string())),
+            &wincode::serialize(&self.store).unwrap()
+        )?;
+
+        Ok(
+            SegmentMeta {
+                segment_id,
+                max_doc: self.max_doc
+            }
+        )
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        todo!()
+    }
+
+    pub fn max_doc(&self) -> u32 {
+        self.max_doc
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SegmentMeta{}
+pub struct SegmentMeta{
+    pub segment_id: SegmentId,
+    pub max_doc: u32
+}
