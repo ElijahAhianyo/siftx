@@ -1,10 +1,11 @@
 mod tui;
 
-use std::path::PathBuf;
-use tui::tui_main;
-use siftx::{FsEntry, FileWalker, Document, FileDocumentSource};
 use siftx::field::{Record, TextOptions};
+use siftx::index::Index;
 use siftx::schema::{Schema, SchemaBuilder};
+use siftx::{Document, FileDocumentSource, FileWalker, FsEntry};
+use std::path::{Path, PathBuf};
+use tui::tui_main;
 
 fn main() {
     // tui_main().unwrap();
@@ -20,33 +21,25 @@ fn main() {
                 field_norms: true,
             },
             true,
-            true
+            true,
         )
         .add_text_field(
-        "body".to_string(),
-        TextOptions {
-            analyzer: "simple".to_string(),
-            record: Record::Basic,
-            field_norms: true,
-        },
-        true,
-        true,
-    )
+            "body".to_string(),
+            TextOptions {
+                analyzer: "simple".to_string(),
+                record: Record::Basic,
+                field_norms: true,
+            },
+            true,
+            true,
+        )
         .build();
 
+    let index = Index::create_in_dir(Path::new(path), schema.clone()).unwrap();
+    let mut writer = index.writer().unwrap();
     let fsd = FileDocumentSource::new(path.into(), schema);
     for doc in fsd {
-        println!("{:?}", doc.unwrap());
+        writer.add_document(doc.unwrap()).unwrap()
+        // println!("{:?}", doc.unwrap());
     }
-
-    // let walker = FileWalker::new(dir);
-    // for doc in walker {
-    //     if let Ok(doc) = doc{
-    //         let content_reader = doc.open().unwrap();
-    //         for chunk in content_reader{
-    //             println!("{:?}", chunk.unwrap());
-    //         }
-    //     }
-    // }
 }
-

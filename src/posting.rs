@@ -1,41 +1,44 @@
-use std::collections::BTreeMap;
-use serde::{Deserialize, Serialize};
 use crate::DocumentId;
 use crate::field::FieldId;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use wincode::{SchemaRead, SchemaWrite};
 
-#[derive(Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialOrd, PartialEq, Ord, Eq, Serialize, Deserialize, SchemaRead, SchemaWrite,
+)]
 pub struct Term {
     pub(crate) field: FieldId,
     pub(crate) text: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SchemaRead, SchemaWrite)]
 pub struct TermEntry {
     pub offset: usize,
     pub len: usize,
-    pub doc_freq: usize
+    pub doc_freq: usize,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, SchemaRead, SchemaWrite)]
 pub struct DocPosting {
     doc_id: DocumentId,
     term_freq: u32,
-    positions: Vec<u32>
+    positions: Vec<u32>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PostingsListBuilder {
-   pub(crate) posting:  Vec<DocPosting>
+    pub(crate) posting: Vec<DocPosting>,
 }
 
 pub struct PostingsBuilder {
-    map: BTreeMap<Term, PostingsListBuilder>
+    map: BTreeMap<Term, PostingsListBuilder>,
 }
 
 impl PostingsBuilder {
     pub fn new() -> Self {
         Self {
-            map: BTreeMap::new()
+            map: BTreeMap::new(),
         }
     }
 
@@ -46,46 +49,47 @@ impl PostingsBuilder {
                 doc_posting.term_freq += 1;
                 doc_posting.positions.push(position);
             }
-            _ => {
-                entry.posting.push(
-                    DocPosting {
-                        doc_id,
-                        term_freq: 1,
-                        positions: vec![position]
-                    }
-                )
-            }
+            _ => entry.posting.push(DocPosting {
+                doc_id,
+                term_freq: 1,
+                positions: vec![position],
+            }),
         }
-
     }
 }
 
-pub struct IntoPostingIter{
-    inner: std::collections::btree_map::IntoIter<Term, PostingsListBuilder>
+pub struct IntoPostingIter {
+    inner: std::collections::btree_map::IntoIter<Term, PostingsListBuilder>,
 }
 
-impl Iterator for IntoPostingIter{
+impl Iterator for IntoPostingIter {
     type Item = (Term, PostingList);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(term, p)| (term, PostingList{postings: p.posting}))
+        self.inner.next().map(|(term, p)| {
+            (
+                term,
+                PostingList {
+                    postings: p.posting,
+                },
+            )
+        })
     }
 }
 
-impl IntoIterator for PostingsBuilder{
+impl IntoIterator for PostingsBuilder {
     type Item = (Term, PostingList);
     type IntoIter = IntoPostingIter;
 
     fn into_iter(self) -> Self::IntoIter {
         IntoPostingIter {
-            inner: self.map.into_iter()
+            inner: self.map.into_iter(),
         }
-
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostingList{
-    pub(crate) postings: Vec<DocPosting>
+#[derive(Debug, Clone, Serialize, Deserialize, SchemaRead, SchemaWrite)]
+pub struct PostingList {
+    pub(crate) postings: Vec<DocPosting>,
 }
 
 impl PostingList {

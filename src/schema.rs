@@ -1,18 +1,16 @@
+use crate::field::{FieldEntry, FieldId, FieldType, TextOptions};
 use std::collections::HashMap;
 use thiserror::Error;
-use crate::field::{FieldEntry, FieldId, FieldType, TextOptions};
 
-pub struct Schema{
+#[derive(Debug, Clone)]
+pub struct Schema {
     fields: Vec<FieldEntry>,
     field_map: HashMap<String, FieldId>,
 }
 
-impl Schema{
-    pub fn new(fields: Vec<FieldEntry>, field_map: HashMap<String, FieldId>) -> Self{
-        Self{
-            fields,
-            field_map,
-        }
+impl Schema {
+    pub fn new(fields: Vec<FieldEntry>, field_map: HashMap<String, FieldId>) -> Self {
+        Self { fields, field_map }
     }
 
     pub fn get_field_id<T: AsRef<str>>(&self, name: T) -> Option<FieldId> {
@@ -24,7 +22,9 @@ impl Schema{
     }
 
     pub fn get_field_entry_by_name<T: AsRef<str>>(&self, name: T) -> Option<&FieldEntry> {
-        self.field_map.get(name.as_ref()).and_then(|id| self.get_field_entry(*id))
+        self.field_map
+            .get(name.as_ref())
+            .and_then(|id| self.get_field_entry(*id))
     }
 
     pub fn builder() -> SchemaBuilder {
@@ -33,7 +33,7 @@ impl Schema{
 }
 
 #[derive(Debug, Clone, Error)]
-pub enum SchemaError{
+pub enum SchemaError {
     #[error("unknown field id: {0:?}")]
     UnknownField(FieldId),
 
@@ -45,35 +45,30 @@ pub enum SchemaError{
 }
 
 #[derive(Debug, Clone)]
-pub struct SchemaBuilder{
+pub struct SchemaBuilder {
     fields: Vec<FieldEntry>,
-    map: HashMap<String, FieldId>
+    map: HashMap<String, FieldId>,
 }
 
-impl SchemaBuilder{
+impl SchemaBuilder {
     pub fn new() -> Self {
         Self {
             fields: Vec::new(),
-            map: HashMap::new()
+            map: HashMap::new(),
         }
     }
-    
+
     pub fn add_text_field(
         mut self,
         name: String,
         options: TextOptions,
         stored: bool,
-        indexed: bool
-    )-> Self {
+        indexed: bool,
+    ) -> Self {
         let id = FieldId::new(self.fields.len() as u64);
-        
-        let field_entry = FieldEntry::new(
-            id,
-            name.clone(),
-            FieldType::Text(options),
-            stored,
-            indexed
-        );
+
+        let field_entry =
+            FieldEntry::new(id, name.clone(), FieldType::Text(options), stored, indexed);
         self.map.insert(name, id);
         self.fields.push(field_entry);
         self
