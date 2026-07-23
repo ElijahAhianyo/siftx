@@ -178,7 +178,7 @@ impl SegmentWriter {
     }
 
     pub fn memory_usage(&self) -> usize {
-        todo!()
+        self.postings.memory_usage()
     }
 
     pub fn max_doc(&self) -> u32 {

@@ -1,6 +1,7 @@
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
 
+mod arena;
 pub mod directory;
 pub mod document;
 pub mod error;
