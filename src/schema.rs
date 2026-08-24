@@ -62,13 +62,12 @@ impl SchemaBuilder {
         mut self,
         name: String,
         options: TextOptions,
-        stored: bool,
-        indexed: bool,
+        store: bool,
+        index: bool,
     ) -> Self {
         let id = FieldId::new(self.fields.len() as u64);
 
-        let field_entry =
-            FieldEntry::new(id, name.clone(), FieldType::Text(options), stored, indexed);
+        let field_entry = FieldEntry::new(id, name.clone(), FieldType::Text(options), store, index);
         self.map.insert(name, id);
         self.fields.push(field_entry);
         self

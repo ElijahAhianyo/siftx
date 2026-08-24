@@ -6,8 +6,8 @@ pub struct FieldEntry {
     field_id: FieldId,
     name: String,
     field_type: FieldType,
-    stored: bool,
-    indexed: bool,
+    store: bool,
+    index: bool,
 }
 
 impl FieldEntry {
@@ -15,20 +15,20 @@ impl FieldEntry {
         field_id: FieldId,
         name: String,
         field_type: FieldType,
-        stored: bool,
-        indexed: bool,
+        store: bool,
+        index: bool,
     ) -> Self {
         Self {
             field_id,
             field_type,
             name,
-            stored,
-            indexed,
+            store,
+            index,
         }
     }
 
-    pub fn is_indexed(&self) -> bool {
-        self.indexed
+    pub fn should_index(&self) -> bool {
+        self.index
     }
 
     pub fn field_type(&self) -> &FieldType {

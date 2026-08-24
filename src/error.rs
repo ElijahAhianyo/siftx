@@ -6,4 +6,6 @@ pub enum SiftxError {
     IoError(#[from] std::io::Error),
     #[error("Unknown Analyzer: {0}")]
     UnknownTextAnalyzer(String),
+    #[error("Index locked: ")]
+    IndexLocked,
 }
