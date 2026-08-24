@@ -13,7 +13,7 @@ fn main() {
         .init();
 
     // tui_main().unwrap();
-    let path = Path::new("/Users/eli/Documents/programming/rust/siftx/src/scratch");
+    let path = Path::new("./scratch");
     let dir = FsEntry::from_path(path.into());
 
     let schema = Schema::builder()
