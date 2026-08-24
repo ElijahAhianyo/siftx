@@ -24,7 +24,9 @@ pub struct Term {
     pub(crate) text: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, SchemaRead, SchemaWrite)]
+#[derive(
+    Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, SchemaRead, SchemaWrite,
+)]
 pub struct TermEntry {
     pub offset: usize,
     pub len: usize,
@@ -40,9 +42,9 @@ pub struct DocPostingBuilder {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, SchemaRead, SchemaWrite)]
 pub struct DocPosting {
-    doc_id: DocumentId,
-    term_freq: u32,
-    positions: Vec<u32>,
+    pub doc_id: DocumentId,
+    pub term_freq: u32,
+    pub positions: Vec<u32>,
 }
 
 #[derive(Debug, Clone, Default)]

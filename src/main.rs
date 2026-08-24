@@ -8,15 +8,19 @@ use std::path::{Path, PathBuf};
 use tui::tui_main;
 
 fn main() {
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     // tui_main().unwrap();
-    let path = "/Users/eli/Documents/programming/rust/siftx/src/scratch";
+    let path = Path::new("/Users/eli/Documents/programming/rust/siftx/src/scratch");
     let dir = FsEntry::from_path(path.into());
 
     let schema = Schema::builder()
         .add_text_field(
             "title".to_string(),
             TextOptions {
-                analyzer: "simple".to_string(),
+                analyzer: "default".to_string(),
                 record: Record::Basic,
                 field_norms: true,
             },
@@ -26,7 +30,7 @@ fn main() {
         .add_text_field(
             "body".to_string(),
             TextOptions {
-                analyzer: "simple".to_string(),
+                analyzer: "default".to_string(),
                 record: Record::Basic,
                 field_norms: true,
             },
@@ -35,11 +39,13 @@ fn main() {
         )
         .build();
 
-    let index = Index::create_in_dir(Path::new(path), schema.clone()).unwrap();
+    let index = Index::create_in_dir(path, schema.clone()).unwrap();
     let mut writer = index.writer().unwrap();
-    let fsd = FileDocumentSource::new(path.into(), schema);
+    let fsd = FileDocumentSource::new(path.join("books"), schema);
     for doc in fsd {
-        writer.add_document(doc.unwrap()).unwrap()
-        // println!("{:?}", doc.unwrap());
+        let doc = doc.unwrap();
+        println!("Iterating doc: {:?}", doc.id());
+        writer.add_document(doc).unwrap()
     }
+    writer.commit().unwrap();
 }

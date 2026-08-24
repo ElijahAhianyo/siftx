@@ -1,7 +1,21 @@
-use std::fs::OpenOptions;
+use crate::error::SiftxError;
+use fs4::FileExt;
+use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+
+pub const FILE_LOCK: &str = "sift_write.lock";
+
+pub struct FileLockGuard {
+    _file: File,
+}
+
+impl Drop for FileLockGuard {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self._file);
+    }
+}
 
 pub trait Directory {
     fn exists(&self, path: &Path) -> bool;
@@ -9,7 +23,13 @@ pub trait Directory {
     fn read_range(&self, path: &Path, range: Range<u64>) -> crate::Result<Vec<u8>>;
     fn write(&self, path: &Path, data: &[u8]) -> crate::Result<()>;
 
+    fn append(&self, path: &Path, data: &[u8]) -> crate::Result<()>;
+
     fn delete(&self, path: &Path) -> crate::Result<()>;
+
+    fn try_lock(&self) -> crate::Result<FileLockGuard>;
+
+    fn path(&self) -> &Path;
 }
 
 #[derive(Debug)]
@@ -23,6 +43,10 @@ impl FsDirectory {
         std::fs::create_dir_all(&root)?;
         Ok(Self { root })
     }
+
+    pub fn path(&self) -> &Path {
+        &self.root
+    }
 }
 
 impl Directory for FsDirectory {
@@ -31,16 +55,17 @@ impl Directory for FsDirectory {
     }
 
     fn read(&self, path: &Path) -> crate::Result<Vec<u8>> {
-        let mut file = std::fs::File::open(self.root.join(path))?;
+        let mut file = File::open(self.root.join(path))?;
         let mut raw = Vec::new();
         file.read_to_end(&mut raw)?;
         Ok(raw)
     }
 
     fn read_range(&self, path: &Path, range: Range<u64>) -> crate::Result<Vec<u8>> {
-        let mut file = std::fs::File::open(self.root.join(path))?;
+        let mut file = File::open(self.root.join(path))?;
         file.seek(SeekFrom::Start(range.start))?;
-        let mut buf = Vec::with_capacity((range.end - range.start + 1) as usize);
+        let len = (range.end - range.start) as usize;
+        let mut buf = vec![0; len];
         file.read_exact(&mut buf)?;
         Ok(buf)
     }
@@ -60,8 +85,33 @@ impl Directory for FsDirectory {
         Ok(())
     }
 
+    fn append(&self, path: &Path, data: &[u8]) -> crate::Result<()> {
+        let mut f = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.root.join(path))?;
+        f.write_all(data)?;
+        f.sync_all()?;
+        Ok(())
+    }
+
     fn delete(&self, path: &Path) -> crate::Result<()> {
         std::fs::remove_file(self.root.join(path))?;
         Ok(())
+    }
+
+    fn try_lock(&self) -> crate::Result<FileLockGuard> {
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(self.path().join(FILE_LOCK))?;
+
+        file.try_lock().map_err(|_| SiftxError::IndexLocked)?;
+
+        Ok(FileLockGuard { _file: file })
+    }
+
+    fn path(&self) -> &Path {
+        self.path()
     }
 }

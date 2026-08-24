@@ -30,8 +30,7 @@ impl Display for SegmentId {
     }
 }
 
-pub struct Segment {}
-pub struct SegmentReader {
+pub struct Segment {
     segment_id: SegmentId,
     max_doc: u32,
     term_infos: Vec<(Term, TermEntry)>,
@@ -39,27 +38,7 @@ pub struct SegmentReader {
     dir: Arc<dyn Directory>,
 }
 
-impl SegmentReader {
-    pub fn open(meta: &SegmentMeta, dir: Arc<dyn Directory>) -> crate::Result<Self> {
-        let term_infos = wincode::deserialize(
-            &dir.read(Path::new(&format!("{}.term", meta.segment_id.to_string())))?,
-        )
-        .unwrap();
-
-        let store = wincode::deserialize(
-            &dir.read(Path::new(&format!("{}.store", meta.segment_id.to_string())))?,
-        )
-        .unwrap();
-
-        Ok(Self {
-            segment_id: meta.segment_id.clone(),
-            max_doc: meta.max_doc,
-            term_infos,
-            store,
-            dir: dir.clone(),
-        })
-    }
-
+impl Segment {
     pub fn term_entry(&self, term: &Term) -> Option<&TermEntry> {
         self.term_infos
             .binary_search_by(|(t, _)| t.cmp(term))
@@ -67,7 +46,10 @@ impl SegmentReader {
             .ok()
     }
 
-    pub fn read_postings(&self, term: &Term) -> crate::Result<Option<PostingList>> {
+    pub fn term_infos(&self) -> &[(Term, TermEntry)] {
+        &self.term_infos
+    }
+    pub fn postings(&self, term: &Term) -> crate::Result<Option<PostingList>> {
         let Some(term_entry) = self.term_entry(term) else {
             return Ok(None);
         };
@@ -77,6 +59,46 @@ impl SegmentReader {
         let path = Path::new(&segment_id);
         let bytes = self.dir.read_range(path, start..end)?;
         Ok(Some(wincode::deserialize(&bytes).unwrap()))
+    }
+
+    pub fn max_id(&self) -> u32 {
+        self.max_doc
+    }
+
+    pub fn segment_id(&self) -> &SegmentId {
+        &self.segment_id
+    }
+}
+pub struct SegmentReader {
+    dir: Arc<dyn Directory>,
+    meta: SegmentMeta,
+}
+
+impl SegmentReader {
+    pub fn new(meta: SegmentMeta, dir: Arc<dyn Directory>) -> Self {
+        Self { meta, dir }
+    }
+
+    pub fn open(&self) -> crate::Result<Segment> {
+        let term_infos = wincode::deserialize(&self.dir.read(Path::new(&format!(
+            "{}.term",
+            self.meta.segment_id.to_string()
+        )))?)
+        .unwrap();
+
+        let store = wincode::deserialize(&self.dir.read(Path::new(&format!(
+            "{}.store",
+            self.meta.segment_id.to_string()
+        )))?)
+        .unwrap();
+
+        Ok(Segment {
+            segment_id: self.meta.segment_id.clone(),
+            max_doc: self.meta.max_doc,
+            term_infos,
+            store,
+            dir: self.dir.clone(),
+        })
     }
 }
 
@@ -108,7 +130,7 @@ impl SegmentWriter {
                 continue;
             };
 
-            if entry.is_indexed() {
+            if !entry.should_index() {
                 continue;
             }
 
@@ -163,7 +185,7 @@ impl SegmentWriter {
 
         dir.write(
             Path::new(&format!("{}.post", segment_id.to_string())),
-            &wincode::serialize(&postings_blob).unwrap(),
+            &postings_blob,
         )?;
 
         dir.write(

@@ -1,4 +1,5 @@
 use std::io::{BufRead, Read, Write};
+use std::ops::Add;
 use std::path::PathBuf;
 
 mod arena;
@@ -20,6 +21,7 @@ use crate::field::{FieldValue, Value};
 use crate::schema::Schema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 use wincode::{SchemaRead, SchemaWrite};
 
 #[derive(Debug, Error)]
@@ -54,6 +56,14 @@ impl Directory {
     SchemaWrite,
 )]
 pub struct DocumentId(u32);
+
+impl Add<u32> for DocumentId {
+    type Output = Self;
+
+    fn add(self, rhs: u32) -> Self::Output {
+        Self(self.0 + rhs)
+    }
+}
 
 #[derive(Debug)]
 pub struct Document {
