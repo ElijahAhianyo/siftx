@@ -24,6 +24,15 @@ pub struct Term {
     pub(crate) text: String,
 }
 
+impl Term {
+    pub fn new<T: Into<String>>(field: FieldId, text: T) -> Self {
+        Self {
+            field,
+            text: text.into(),
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, SchemaRead, SchemaWrite,
 )]
