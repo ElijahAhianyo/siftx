@@ -55,7 +55,7 @@ impl Directory {
     SchemaRead,
     SchemaWrite,
 )]
-pub struct DocumentId(u32);
+pub struct DocumentId(pub u32);
 
 impl Add<u32> for DocumentId {
     type Output = Self;
